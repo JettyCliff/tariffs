@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tariff Lookup & Landed Cost Calculator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; color: #111827; font-size: 14px; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Layout */
+  .app-header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .app-header h1 { font-size: 17px; font-weight: 700; color: #111827; }
+  .app-header p { font-size: 11px; color: #6b7280; }
+  .header-links { display: flex; gap: 10px; align-items: center; font-size: 12px; }
+  .tabs { display: flex; gap: 2px; background: #e5e7eb; padding: 4px; border-radius: 10px; width: fit-content; margin: 16px 20px 0; }
+  .tab-btn { padding: 6px 14px; border-radius: 7px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: #6b7280; transition: all .15s; }
+  .tab-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .main { max-width: 900px; margin: 0 auto; padding: 16px 20px 40px; }
+
+  /* Alerts */
+  .alert { border-radius: 10px; padding: 12px 14px; font-size: 12.5px; margin-bottom: 16px; display: flex; gap: 8px; align-items: flex-start; }
+  .alert-red { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert-amber { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .alert-blue { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .alert-green { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Cards */
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .card-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 14px; }
+  .card-subtitle { font-size: 12px; color: #6b7280; margin-top: -10px; margin-bottom: 14px; }
+
+  /* Form */
+  label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  input, select, textarea { width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; color: #111827; outline: none; transition: border .15s, box-shadow .15s; background: #fff; }
+  input:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+  .input-prefix { position: relative; }
+  .input-prefix span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 13px; pointer-events: none; }
+  .input-prefix input { padding-left: 22px; }
+  .field-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .field-row .field { flex: 1; }
+  .field { margin-bottom: 14px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+  .btn-outline:hover { background: #f9fafb; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-amber { background: #fef3c7; color: #d97706; }
+  .badge-purple { background: #f3e8ff; color: #7e22ce; }
+  .badge-gray { background: #f3f4f6; color: #4b5563; }
+  .badge-orange { background: #fed7aa; color: #c2410c; }
+
+  /* Tariff stack breakdown */
+  .tariff-stack { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin: 14px 0; }
+  .tariff-stack-header { padding: 10px 14px; background: #1e293b; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .03em; display: flex; justify-content: space-between; align-items: center; }
+  .tariff-stack-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-bottom: 1px solid #e5e7eb; font-size: 12.5px; }
+  .tariff-stack-row:last-child { border-bottom: none; }
+  .tariff-stack-row.total { background: #fef3c7; font-weight: 700; font-size: 14px; color: #92400e; }
+  .tariff-stack-row.struck { text-decoration: line-through; color: #9ca3af; background: #f9fafb; }
+  .tariff-stack-label { display: flex; align-items: center; gap: 6px; }
+  .tariff-stack-val { font-family: monospace; font-weight: 600; }
+  .tariff-stack-val.positive { color: #dc2626; }
+  .tariff-stack-val.zero { color: #6b7280; }
+
+  /* Match cards */
+  .match-card { border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px; cursor: pointer; transition: all .15s; background: #fff; margin-bottom: 10px; }
+  .match-card:hover { border-color: #93c5fd; box-shadow: 0 2px 8px rgba(37,99,235,.1); }
+  .match-card.selected { border-color: #2563eb; background: #eff6ff; box-shadow: 0 2px 8px rgba(37,99,235,.15); }
+  .match-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .match-card-name { font-weight: 600; color: #111827; font-size: 13.5px; }
+  .match-card-hts { font-family: monospace; font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .match-total { text-align: right; }
+  .match-total-rate { font-size: 22px; font-weight: 800; }
+  .match-total-rate.high { color: #dc2626; }
+  .match-total-rate.medium { color: #d97706; }
+  .match-total-rate.low { color: #16a34a; }
+  .match-total-label { font-size: 10px; color: #6b7280; }
+  .match-breakdown { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #6b7280; }
+  .match-breakdown span strong { color: #374151; }
+
+  /* Landed cost */
+  .cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .cost-result { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+  .cost-result-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e7eb; font-size: 12.5px; }
+  .cost-result-row:last-child { border-bottom: none; }
+  .cost-result-row.total { padding-top: 10px; font-weight: 700; font-size: 15px; color: #111827; }
+  .cost-result-row.highlight { color: #dc2626; font-weight: 600; }
+  .cost-result-row.blue { color: #1d4ed8; font-weight: 600; }
+  .cost-result-row.per-unit { color: #2563eb; font-weight: 700; font-size: 14px; border-top: 2px solid #2563eb; padding-top: 8px; }
+
+  /* News */
+  .news-item { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; transition: background .1s; }
+  .news-item:hover { background: #f9fafb; }
+  .news-item:last-child { border-bottom: none; }
+  .news-item-title { font-size: 13px; font-weight: 500; color: #1d4ed8; margin-bottom: 4px; }
+  .news-item-title a { color: inherit; }
+  .news-item-meta { display: flex; gap: 8px; align-items: center; font-size: 11px; color: #9ca3af; }
+  .news-item-abstract { font-size: 12px; color: #6b7280; margin-top: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .news-search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .news-search-bar input { flex: 1; }
+
+  /* Reference table */
+  .ref-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .ref-table th { background: #f3f4f6; text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid #e5e7eb; }
+  .ref-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: #fafafa; }
+  .total-cell.high { color: #dc2626; font-weight: 700; }
+  .total-cell.medium { color: #d97706; font-weight: 700; }
+  .total-cell.low { color: #16a34a; font-weight: 700; }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Skeleton */
+  .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 8px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* No results */
+  .empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+  .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  /* Utility */
+  .flex { display: flex; }
+  .gap-2 { gap: 8px; }
+  .items-center { align-items: center; }
+  .mt-2 { margin-top: 8px; }
+  .text-sm { font-size: 12px; }
+  .text-gray { color: #6b7280; }
+  .font-mono { font-family: monospace; }
+  hr.divider { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+
+  @media (max-width: 600px) {
+    .field-row { flex-direction: column; }
+    .cost-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1>🧵 Tariff Lookup &amp; Landed Cost</h1>
+    <p>HTS Code Finder · Full Tariff Stack · Live US Government News</p>
+  </div>
+  <div class="header-links">
+    <span class="badge badge-red">⚠️ Post-SCOTUS Feb 2026</span>
+    <a href="https://hts.usitc.gov" target="_blank">USITC HTS ↗</a>
+    <a href="https://ustr.gov/issue-areas/enforcement/section-301-investigations/tariff-actions" target="_blank">USTR ↗</a>
+  </div>
+</header>
+
+<!-- SCOTUS Alert Banner -->
+<div style="background:#fef2f2;border-bottom:1px solid #fecaca;padding:10px 20px;">
+  <div style="max-width:900px;margin:0 auto;font-size:12.5px;color:#991b1b;">
+    <strong>⚖️ Major Tariff Change — Feb 20, 2026:</strong>
+    SCOTUS struck down all IEEPA-based tariffs (6–3, <em>Learning Resources v. Trump</em>).
+    Trump responded with a new <strong>15% global surcharge under Section 122</strong> (effective Feb 24, expires Jul 24, 2026).
+    <strong>Section 301 China tariffs remain fully in effect.</strong>
+    This app reflects the current post-SCOTUS tariff stack.
+    <a href="https://www.scotusblog.com/2026/02/supreme-court-strikes-down-tariffs/" target="_blank" style="color:#991b1b;margin-left:6px;">Read ruling ↗</a>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs" style="max-width:900px;margin:16px auto 0;padding:0 20px;">
+  <div class="tabs" style="margin:0;padding:0;">
+    <button class="tab-btn active" onclick="showTab('lookup')">🔍 Lookup &amp; Calculator</button>
+    <button class="tab-btn" onclick="showTab('news')">📰 Live Tariff News</button>
+    <button class="tab-btn" onclick="showTab('reference')">📋 Tariff Reference</button>
+    <button class="tab-btn" onclick="showTab('explainer')">📖 Tariff Explainer</button>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════════════════════════════════════════ LOOKUP TAB -->
+<div id="tab-lookup">
+
+  <!-- Current Tariff Status Summary -->
+  <div class="card" style="border-color:#fde68a;background:#fffbeb;">
+    <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:10px;">📊 Current Tariff Landscape (as of March 3, 2026)</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;">
+      <div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:10px;">
+        <div style="font-weight:700;color:#dc2626;font-size:15px;margin-bottom:3px;">MFN + 15% + Sec 301</div>
+        <div style="color:#78350f;font-weight:600;">China – Apparel</div>
+        <div style="color:#92400e;margin-top:4px;">e.g. cotton shirt: ~38–54% total</div>
+      </div>
+      <div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:10px;">
+        <div style="font-weight:700;color:#d97706;font-size:15px;margin-bottom:3px;">MFN + 15%</div>
+        <div style="color:#78350f;font-weight:600;">All Other Countries</div>
+        <div style="color:#92400e;margin-top:4px;">Vietnam, Bangladesh, etc. (no Sec 301)</div>
+      </div>
+      <div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:10px;">
+        <div style="font-weight:700;color:#16a34a;font-size:15px;margin-bottom:3px;">MFN Only</div>
+        <div style="color:#78350f;font-weight:600;">USMCA / CAFTA</div>
+        <div style="color:#92400e;margin-top:4px;">Mexico, CAFTA-DR exempt from Sec 122</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:11.5px;color:#92400e;">
+      <strong>Section 122 surcharge:</strong> 15% on all imports · Expires Jul 24, 2026 · Requires Congress to extend beyond 150 days
+      &nbsp;|&nbsp; <strong>IEEPA tariffs:</strong> Struck down Feb 20, 2026 &nbsp;|&nbsp; <strong>Section 301:</strong> Remains in force
+    </div>
+  </div>
+
+  <!-- Product Input -->
+  <div class="card">
+    <div class="card-title">Enter Product Details</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Product Description <span style="color:#ef4444">*</span></label>
+        <input type="text" id="product-desc" placeholder="e.g. Women's woven polyester blouse, long sleeve" onkeydown="if(event.key==='Enter')doLookup()">
+      </div>
+      <div class="field" style="max-width:220px;">
+        <label>Country of Origin</label>
+        <select id="country">
+          <option value="china">China 🇨🇳</option>
+          <option value="vietnam">Vietnam 🇻🇳</option>
+          <option value="bangladesh">Bangladesh 🇧🇩</option>
+          <option value="india">India 🇮🇳</option>
+          <option value="indonesia">Indonesia 🇮🇩</option>
+          <option value="cambodia">Cambodia 🇰🇭</option>
+          <option value="mexico">Mexico 🇲🇽 (USMCA)</option>
+          <option value="turkey">Turkey 🇹🇷</option>
+          <option value="pakistan">Pakistan 🇵🇰</option>
+          <option value="other">Other Country</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Fabric / Material Content</label>
+      <input type="text" id="fabric-content" placeholder="e.g. 100% polyester  /  60% cotton 40% polyester  /  silk blend" onkeydown="if(event.key==='Enter')doLookup()">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn btn-primary" id="lookup-btn" onclick="doLookup()">
+        Look Up HTS Code &amp; Tariffs
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="clearLookup()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="lookup-results" style="display:none;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;color:#111827;">HTS Classification Matches</div>
+      <span id="match-count" class="badge badge-gray"></span>
+    </div>
+    <div id="match-list"></div>
+
+    <!-- Tariff Stack Breakdown for selected match -->
+    <div id="tariff-stack-section" style="display:none;" class="card">
+      <div class="card-title" style="margin-bottom:6px;">📦 Full Tariff Stack — Selected Product</div>
+      <div class="card-subtitle">All applicable duties stacked per CBP rules, reflecting post-SCOTUS landscape</div>
+      <div id="tariff-stack-breakdown"></div>
+      <div id="tariff-notes" style="margin-top:12px;font-size:11.5px;color:#6b7280;"></div>
+    </div>
+  </div>
+
+  <!-- Landed Cost Calculator -->
+  <div class="card">
+    <div class="card-title">💰 Landed Cost Calculator</div>
+    <div id="calc-tariff-note" class="alert alert-blue" style="margin-bottom:14px;">
+      <span class="alert-icon">ℹ️</span>
+      <span>Look up a product above to auto-populate the tariff rate, or enter one manually below.</span>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Unit Cost — FOB (factory price, USD)</label>
+        <div class="input-prefix"><span>$</span><input type="number" id="unit-cost" placeholder="0.00" oninput="calcLanded()" min="0" step="0.01"></div>
+      </div>
+      <div class="field" style="max-width:140px;">
+        <label>Quantity (units)</label>
+        <input type="number" id="quantity" placeholder="1" oninput="calcLanded()" min="1">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Total Freight / Shipping Cost (USD)</label>
+        <div class="input-prefix"><span>$</span><input type="number" id="freight-cost" placeholder="0.00" oninput="calcLanded()" min="0" step="0.01"></div>
+      </div>
+      <div class="field">
+        <label>Customs Broker / ISF / Other Fees (USD)</label>
+        <div class="input-prefix"><span>$</span><input type="number" id="other-fees" placeholder="0.00" oninput="calcLanded()" min="0" step="0.01"></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="max-width:200px;">
+        <label>Override Tariff Rate <span class="text-gray">(auto-filled from lookup)</span></label>
+        <div class="input-prefix"><span style="right:10px;left:auto;font-size:12px;">%</span>
+          <input type="number" id="tariff-rate-override" placeholder="e.g. 38.5" oninput="calcLanded()" min="0" max="200" step="0.1" style="padding-right:28px;">
+        </div>
+      </div>
+    </div>
+
+    <div id="landed-result" style="display:none;" class="cost-result">
+      <div class="cost-result-row">
+        <span>Total Product Cost (<span id="r-qty">—</span> units × $<span id="r-unit">—</span>)</span>
+        <strong>$<span id="r-product-total">—</span></strong>
+      </div>
+      <div class="cost-result-row">
+        <span>Freight / Shipping</span>
+        <strong>$<span id="r-freight">—</span></strong>
+      </div>
+      <div class="cost-result-row">
+        <span>Other Fees</span>
+        <strong>$<span id="r-fees">—</span></strong>
+      </div>
+      <div class="cost-result-row" style="color:#374151;font-weight:600;background:#f8fafc;border-top:1px solid #e5e7eb;margin:4px -14px;padding:8px 14px;">
+        <span>CIF Value (Dutiable Basis)</span>
+        <span>$<span id="r-cif">—</span></span>
+      </div>
+      <div class="cost-result-row highlight">
+        <span>Import Tariff (<span id="r-rate">—</span>% of CIF)</span>
+        <span>$<span id="r-tariff">—</span></span>
+      </div>
+      <div class="cost-result-row total">
+        <span>🏁 Total Landed Cost</span>
+        <span>$<span id="r-total">—</span></span>
+      </div>
+      <div class="cost-result-row per-unit">
+        <span>💲 Cost Per Unit (Landed)</span>
+        <span>$<span id="r-per-unit">—</span></span>
+      </div>
+      <div class="cost-result-row" style="font-size:11px;color:#9ca3af;padding-top:6px;">
+        <span>Tariff as % of landed cost</span>
+        <span id="r-tariff-pct">—</span>
+      </div>
+      <div class="cost-result-row" style="font-size:11px;color:#9ca3af;">
+        <span>Effective duty markup per unit</span>
+        <span>$<span id="r-duty-per-unit">—</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="card" style="padding:14px 16px;">
+    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">Official Government Resources</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+      <a href="https://hts.usitc.gov/search" target="_blank" class="btn btn-outline btn-sm">↗ USITC HTS Search Tool</a>
+      <a href="https://ustr.gov/issue-areas/enforcement/section-301-investigations/tariff-actions" target="_blank" class="btn btn-outline btn-sm">↗ USTR Section 301 Lists</a>
+      <a href="https://rulings.cbp.gov" target="_blank" class="btn btn-outline btn-sm">↗ CBP Binding Rulings</a>
+      <a href="https://www.federalregister.gov/topics/tariff" target="_blank" class="btn btn-outline btn-sm">↗ Federal Register – Tariffs</a>
+      <a href="https://www.scotusblog.com/2026/02/supreme-court-strikes-down-tariffs/" target="_blank" class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#dc2626;">↗ SCOTUS Feb 2026 Ruling</a>
+      <a href="https://www.whitehouse.gov/fact-sheets/2026/02/fact-sheet-president-donald-j-trump-imposes-a-temporary-import-duty-to-address-fundamental-international-payment-problems/" target="_blank" class="btn btn-outline btn-sm" style="border-color:#fde68a;color:#d97706;">↗ Sec. 122 White House Order</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ NEWS TAB -->
+<div id="tab-news" style="display:none;">
+  <div class="card">
+    <div class="card-title">📰 Live Federal Register — Tariff Notices</div>
+    <div class="card-subtitle">Live data from the official Federal Register API (federalregister.gov)</div>
+    <div class="news-search-bar">
+      <input type="text" id="news-query" value="tariff apparel textile China" placeholder="Search tariff notices…" onkeydown="if(event.key==='Enter')fetchNews()">
+      <button class="btn btn-primary" onclick="fetchNews()" id="news-btn">Search</button>
+      <button class="btn btn-outline" onclick="document.getElementById('news-query').value='tariff apparel textile China';fetchNews()">Reset</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="news-quick-filters">
+      <button class="btn btn-outline btn-sm" onclick="quickSearch('Section 301 China tariff')">Section 301</button>
+      <button class="btn btn-outline btn-sm" onclick="quickSearch('tariff apparel textile')">Apparel</button>
+      <button class="btn btn-outline btn-sm" onclick="quickSearch('import surcharge Section 122')">Section 122</button>
+      <button class="btn btn-outline btn-sm" onclick="quickSearch('tariff exclusion China')">Exclusions</button>
+      <button class="btn btn-outline btn-sm" onclick="quickSearch('trade tariff 2026')">2026 Actions</button>
+    </div>
+    <div id="news-list">
+      <div class="skeleton" style="height:60px;margin-bottom:8px;"></div>
+      <div class="skeleton" style="height:60px;margin-bottom:8px;"></div>
+      <div class="skeleton" style="height:60px;"></div>
+    </div>
+    <p style="margin-top:12px;font-size:11px;color:#9ca3af;text-align:center;">
+      Data pulled live from <a href="https://www.federalregister.gov" target="_blank">federalregister.gov</a> public API (no API key required)
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ REFERENCE TAB -->
+<div id="tab-reference" style="display:none;">
+  <div class="card">
+    <div class="card-title">📋 Tariff Reference — Common Apparel HTS Codes</div>
+    <div class="card-subtitle">Post-SCOTUS rates (March 2026): MFN base + Section 122 (15% all countries) + Section 301 (China only). Section 301 set by USTR, applied cumulatively.</div>
+    <div class="alert alert-amber" style="margin-bottom:14px;">
+      <span class="alert-icon">⚠️</span>
+      <span>These rates include the current 15% Section 122 surcharge (expires Jul 24, 2026). If Section 122 expires or is extended by Congress, totals will change. Always verify with <a href="https://hts.usitc.gov">USITC</a> before importing.</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ref-table" id="ref-table"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ EXPLAINER TAB -->
+<div id="tab-explainer" style="display:none;">
+  <div class="card">
+    <div class="card-title">📖 What Tariffs Are Currently In Effect? (March 2026)</div>
+
+    <div class="alert alert-red" style="margin-bottom:16px;">
+      <span class="alert-icon">⚖️</span>
+      <div><strong>SCOTUS Ruling — Feb 20, 2026:</strong> The Supreme Court ruled 6–3 in <em>Learning Resources, Inc. v. Trump</em> that IEEPA does not authorize the President to impose tariffs. All IEEPA-based tariffs were immediately struck down. This included the "reciprocal" tariffs and the "fentanyl" China tariffs imposed in 2025.</div>
+    </div>
+
+    <div style="display:grid;gap:12px;">
+
+      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <div style="background:#dc2626;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;">🔴 STRUCK DOWN — IEEPA Tariffs (No longer in effect)</div>
+        <div style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6;">
+          <strong>What they were:</strong> Tariffs imposed under the International Emergency Economic Powers Act (IEEPA), including:
+          <ul style="margin:8px 0 8px 18px;">
+            <li>"Liberation Day" reciprocal tariffs (April 2025) — up to 145% on China, 46% Vietnam, etc.</li>
+            <li>China "fentanyl" tariffs (20% cumulative)</li>
+            <li>Country-specific reciprocal tariffs on all trading partners</li>
+          </ul>
+          <strong>Why struck down:</strong> IEEPA's "regulate" authority does not include raising tariff revenue; it's not the same as imposing import taxes.
+        </div>
+      </div>
+
+      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <div style="background:#d97706;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;">🟡 NEW — Section 122 Global Surcharge (Currently in effect, temporary)</div>
+        <div style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6;">
+          <strong>Rate:</strong> 15% ad valorem on all imports (started at 10%, raised to 15% on Feb 21, 2026)<br>
+          <strong>Authority:</strong> Section 122 of the Trade Act of 1974 (balance of payments authority)<br>
+          <strong>Effective:</strong> February 24, 2026<br>
+          <strong>Expires:</strong> July 24, 2026 (hard 150-day statutory limit)<br>
+          <strong>Extends to:</strong> Virtually all countries except USMCA/CAFTA qualifying goods<br>
+          <strong>Key limit:</strong> Maximum 15% rate; requires an Act of Congress to extend beyond 150 days
+        </div>
+      </div>
+
+      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <div style="background:#7e22ce;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;">🟣 STILL IN EFFECT — Section 301 China Tariffs</div>
+        <div style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6;">
+          <strong>Origin:</strong> First imposed 2018–2019, originally under Trump 1.0, maintained by Biden, continued now<br>
+          <strong>Authority:</strong> Section 301 of the Trade Act of 1974 (unfair trade practices)<br>
+          <strong>Rates on apparel:</strong>
+          <ul style="margin:8px 0 8px 18px;">
+            <li><strong>List 4A products</strong> (most finished apparel): 7.5%</li>
+            <li><strong>Lists 1–3 products</strong> (fabrics, some accessories): 25%</li>
+          </ul>
+          <strong>Applies to:</strong> China only · Not affected by SCOTUS ruling · No expiration
+        </div>
+      </div>
+
+      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <div style="background:#1e40af;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;">🔵 ALWAYS IN EFFECT — MFN Base Tariff (Column 1)</div>
+        <div style="padding:12px 14px;font-size:13px;color:#374151;line-height:1.6;">
+          <strong>What it is:</strong> The standard "Most Favored Nation" tariff rate set by Congress in the HTS schedule<br>
+          <strong>Applies to:</strong> All WTO member countries<br>
+          <strong>Rates on apparel:</strong> Typically 5%–32% depending on garment type and fabric<br>
+          <strong>Example:</strong> Cotton knit shirt (6109.10.00) = 16.5% MFN
+        </div>
+      </div>
+
+      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+        <div style="background:#374151;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;">⚙️ How the Tariffs Stack (China Example — Cotton Knit Shirt)</div>
+        <div style="padding:12px 14px;font-size:13px;">
+          <div class="tariff-stack" style="margin:0;">
+            <div class="tariff-stack-row">
+              <span class="tariff-stack-label"><span class="badge badge-blue">MFN</span> Base HTS Rate (6109.10.00)</span>
+              <span class="tariff-stack-val positive">+16.5%</span>
+            </div>
+            <div class="tariff-stack-row">
+              <span class="tariff-stack-label"><span class="badge badge-amber">Sec 122</span> Global Surcharge (all countries, temp.)</span>
+              <span class="tariff-stack-val positive">+15.0%</span>
+            </div>
+            <div class="tariff-stack-row">
+              <span class="tariff-stack-label"><span class="badge badge-purple">Sec 301</span> China Tariff — List 4A</span>
+              <span class="tariff-stack-val positive">+7.5%</span>
+            </div>
+            <div class="tariff-stack-row struck">
+              <span class="tariff-stack-label"><span class="badge badge-gray">IEEPA</span> Reciprocal tariff (STRUCK DOWN)</span>
+              <span class="tariff-stack-val zero">+0% ✕</span>
+            </div>
+            <div class="tariff-stack-row total">
+              <span class="tariff-stack-label">🏁 Total Duty Rate on CIF Value</span>
+              <span class="tariff-stack-val">= 39.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════════
+
+// Post-SCOTUS tariff rates (March 3, 2026)
+// Stack: MFN + Section 122 (15%, all countries) + Section 301 (China only)
+// IEEPA tariffs struck down Feb 20, 2026
+
+const SEC122_RATE = 15; // Section 122 surcharge, all non-USMCA/CAFTA
+
+const COUNTRY_SEC301 = {
+  china: true,
+  vietnam: false,
+  bangladesh: false,
+  india: false,
+  indonesia: false,
+  cambodia: false,
+  mexico: false,
+  turkey: false,
+  pakistan: false,
+  other: false,
+};
+
+// USMCA/CAFTA members exempt from Section 122
+const USMCA_CAFTA = { mexico: true };
+
+const PRODUCTS = [
+  {
+    category: "Cotton T-Shirts / Knit Shirts",
+    hts: "6109.10.00",
+    chapter: "61",
+    mfn: 16.5,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","knit"], product: ["shirt","tee","t-shirt","top","polo","henley"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6109.10.00",
+  },
+  {
+    category: "Woven Cotton Blouses / Shirts (Women)",
+    hts: "6206.30.30",
+    chapter: "62",
+    mfn: 15.4,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","woven"], product: ["blouse","shirt","top","women","woman","ladies"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6206.30.30",
+  },
+  {
+    category: "Woven Cotton Shirts (Men / Boys)",
+    hts: "6205.20.20",
+    chapter: "62",
+    mfn: 19.7,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","woven"], product: ["shirt","men","man","boys","button","button-down","oxford","dress shirt"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6205.20.20",
+  },
+  {
+    category: "Knit Synthetic (Polyester/Nylon) Sweaters",
+    hts: "6110.30.30",
+    chapter: "61",
+    mfn: 32.0,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["polyester","nylon","synthetic","knit"], product: ["sweater","pullover","jumper","knitwear","cardigan"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6110.30.30",
+  },
+  {
+    category: "Knit Cotton Sweaters",
+    hts: "6110.20.20",
+    chapter: "61",
+    mfn: 16.5,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","knit"], product: ["sweater","pullover","jumper","cardigan"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6110.20.20",
+  },
+  {
+    category: "Cotton Denim Trousers / Jeans",
+    hts: "6203.42.40",
+    chapter: "62",
+    mfn: 16.6,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","denim","chambray"], product: ["trouser","pant","jean","jeans","chino","denim"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6203.42.40",
+  },
+  {
+    category: "Synthetic Trousers / Pants (Woven)",
+    hts: "6203.43.40",
+    chapter: "62",
+    mfn: 27.9,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["polyester","nylon","synthetic","woven"], product: ["trouser","pant","slack","jogger"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6203.43.40",
+  },
+  {
+    category: "Women's Trousers / Pants (Cotton)",
+    hts: "6204.62.40",
+    chapter: "62",
+    mfn: 14.9,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","woven"], product: ["trouser","pant","women","woman","ladies","legging"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6204.62.40",
+  },
+  {
+    category: "Down / Synthetic Fill Jackets / Puffer Coats",
+    hts: "6201.93.35",
+    chapter: "62",
+    mfn: 27.7,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["down","feather","fill","polyester","synthetic"], product: ["jacket","coat","parka","puffer","anorak","windbreaker","vest"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6201.93.35",
+  },
+  {
+    category: "Women's Dresses (Woven, Synthetic)",
+    hts: "6204.43.40",
+    chapter: "62",
+    mfn: 16.0,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["polyester","synthetic","woven"], product: ["dress","gown","women","woman"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6204.43.40",
+  },
+  {
+    category: "Women's Dresses (Woven, Cotton)",
+    hts: "6204.41.30",
+    chapter: "62",
+    mfn: 8.4,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","woven"], product: ["dress","gown","women","woman"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6204.41.30",
+  },
+  {
+    category: "Woven Silk Apparel",
+    hts: "6211.41.00",
+    chapter: "62",
+    mfn: 6.9,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["silk","silky","satin"], product: ["blouse","shirt","top","dress","jacket","coat"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6211.41.00",
+  },
+  {
+    category: "Polyester Woven Fabric (by the yard)",
+    hts: "5407.52.20",
+    chapter: "54",
+    mfn: 12.0,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["polyester","synthetic","woven"], product: ["fabric","material","cloth","textile","yard","bolt","yardage"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=5407.52.20",
+  },
+  {
+    category: "Cotton Woven Fabric (by the yard)",
+    hts: "5208.52.40",
+    chapter: "52",
+    mfn: 8.5,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["cotton","woven"], product: ["fabric","material","cloth","textile","yard","bolt","yardage"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=5208.52.40",
+  },
+  {
+    category: "Wool Woven Fabric",
+    hts: "5111.11.70",
+    chapter: "51",
+    mfn: 25.0,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["wool","woolen","cashmere","merino"], product: ["fabric","material","cloth","textile","yard","bolt"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=5111.11.70",
+  },
+  {
+    category: "Knit Cotton Fabric",
+    hts: "6001.92.00",
+    chapter: "60",
+    mfn: 10.9,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","knit"], product: ["fabric","material","cloth","textile","jersey","knit fabric"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6001.92.00",
+  },
+  {
+    category: "Handbags / Purses (Textile / PU Leather)",
+    hts: "4202.22.15",
+    chapter: "42",
+    mfn: 17.6,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["textile","pu","polyurethane","leather","faux"], product: ["bag","handbag","purse","tote","clutch","satchel"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=4202.22.15",
+  },
+  {
+    category: "Athletic / Sports Footwear",
+    hts: "6404.11.90",
+    chapter: "64",
+    mfn: 20.0,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["synthetic","mesh","textile","knit"], product: ["shoe","sneaker","athletic","sport","runner","trainer"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6404.11.90",
+  },
+  {
+    category: "Leather / PU Leather Footwear",
+    hts: "6403.99.90",
+    chapter: "64",
+    mfn: 10.0,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["leather","pu leather","genuine","suede","vegan leather","faux leather"], product: ["shoe","boot","sandal","pump","heel","oxford","loafer","footwear"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6403.99.90",
+  },
+  {
+    category: "Hats / Headwear (Knit)",
+    hts: "6505.00.30",
+    chapter: "65",
+    mfn: 20.0,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["knit","wool","cotton","acrylic"], product: ["hat","cap","beanie","headwear","toque"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6505.00.30",
+  },
+  {
+    category: "Scarves / Shawls (Silk)",
+    hts: "6214.10.10",
+    chapter: "62",
+    mfn: 1.4,
+    sec301_list: "3",
+    sec301: 25.0,
+    keywords: { fabric: ["silk","satin"], product: ["scarf","shawl","wrap","stole"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6214.10.10",
+  },
+  {
+    category: "Underwear / Briefs (Cotton Knit)",
+    hts: "6107.11.00",
+    chapter: "61",
+    mfn: 11.4,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","knit"], product: ["underwear","brief","boxer","panty","underpant","lingerie"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6107.11.00",
+  },
+  {
+    category: "Baby Garments (Knit Cotton)",
+    hts: "6111.20.60",
+    chapter: "61",
+    mfn: 14.9,
+    sec301_list: "4A",
+    sec301: 7.5,
+    keywords: { fabric: ["cotton","knit"], product: ["baby","infant","toddler","children","kids","onesie","romper"] },
+    usitc_url: "https://hts.usitc.gov/view?release=2026HTSBasicEdition&query=6111.20.60",
+  },
+];
+
+// ══════════════════════════════════════════════════════════════════════
+// TARIFF CALCULATIONS
+// ══════════════════════════════════════════════════════════════════════
+
+function getTariffStack(product, country) {
+  const isChina = COUNTRY_SEC301[country] || false;
+  const isUsmcaCafta = USMCA_CAFTA[country] || false;
+  const sec122 = isUsmcaCafta ? 0 : SEC122_RATE;
+  const sec301 = isChina ? (product.sec301 || 0) : 0;
+  const total = product.mfn + sec122 + sec301;
+
+  return {
+    mfn: product.mfn,
+    sec122,
+    sec301,
+    sec301_list: product.sec301_list,
+    total,
+    isChina,
+    isUsmcaCafta,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SCORING / MATCHING
+// ══════════════════════════════════════════════════════════════════════
+
+function scoreProduct(desc, fabric, product) {
+  const text = (desc + ' ' + fabric).toLowerCase();
+  let score = 0;
+
+  // Fabric match
+  for (const kw of product.keywords.fabric) {
+    if (text.includes(kw)) score += 3;
+  }
+  // Product type match
+  for (const kw of product.keywords.product) {
+    if (text.includes(kw)) score += 4;
+  }
+  // Knit / woven hint
+  if (text.includes('knit') && product.category.toLowerCase().includes('knit')) score += 2;
+  if ((text.includes('woven') || text.includes('weave')) && product.category.toLowerCase().includes('woven')) score += 2;
+
+  return score;
+}
+
+function findMatches(desc, fabric) {
+  return PRODUCTS
+    .map(p => ({ ...p, score: scoreProduct(desc, fabric, p) }))
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// UI STATE
+// ══════════════════════════════════════════════════════════════════════
+
+let selectedProduct = null;
+
+function showTab(name) {
+  ['lookup','news','reference','explainer'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['lookup','news','reference','explainer'][i] === name);
+  });
+  if (name === 'news' && document.getElementById('news-list').querySelector('.skeleton')) fetchNews();
+  if (name === 'reference') renderRefTable();
+}
+
+function clearLookup() {
+  document.getElementById('product-desc').value = '';
+  document.getElementById('fabric-content').value = '';
+  document.getElementById('lookup-results').style.display = 'none';
+  document.getElementById('tariff-stack-section').style.display = 'none';
+  selectedProduct = null;
+  document.getElementById('tariff-rate-override').value = '';
+  document.getElementById('landed-result').style.display = 'none';
+  document.getElementById('calc-tariff-note').style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// LOOKUP
+// ══════════════════════════════════════════════════════════════════════
+
+function doLookup() {
+  const desc = document.getElementById('product-desc').value.trim();
+  if (!desc) { document.getElementById('product-desc').focus(); return; }
+  const fabric = document.getElementById('fabric-content').value.trim();
+  const country = document.getElementById('country').value;
+
+  const btn = document.getElementById('lookup-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Searching…';
+
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.textContent = 'Look Up HTS Code & Tariffs';
+
+    const matches = findMatches(desc, fabric);
+    document.getElementById('lookup-results').style.display = '';
+    document.getElementById('match-count').textContent = matches.length + ' match' + (matches.length !== 1 ? 'es' : '');
+
+    const list = document.getElementById('match-list');
+    if (matches.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No close matches found. Try adding more detail to your description.</p><p style="margin-top:8px;"><a href="https://hts.usitc.gov/search" target="_blank">Search USITC HTS directly ↗</a></p></div>`;
+      return;
+    }
+
+    list.innerHTML = matches.map((m, i) => renderMatchCard(m, country, i === 0)).join('');
+    if (matches.length > 0) selectProduct(matches[0], country);
+  }, 500);
+}
+
+function renderMatchCard(product, country, isTop) {
+  const stack = getTariffStack(product, country);
+  const rateClass = stack.total > 45 ? 'high' : stack.total > 28 ? 'medium' : 'low';
+  const selectedClass = (selectedProduct && selectedProduct.hts === product.hts) ? 'selected' : '';
+
+  let breakdown = `<span>MFN: <strong>${stack.mfn.toFixed(1)}%</strong></span>`;
+  if (stack.sec122 > 0) breakdown += `<span>Sec 122: <strong>+${stack.sec122}%</strong></span>`;
+  if (stack.sec301 > 0) breakdown += `<span>Sec 301 (List ${product.sec301_list}): <strong>+${stack.sec301}%</strong></span>`;
+  if (stack.isUsmcaCafta) breakdown += `<span class="badge badge-green">USMCA exempt from Sec 122</span>`;
+  if (isTop) breakdown += `<span class="badge badge-green">Best Match</span>`;
+
+  return `
+    <div class="match-card ${selectedClass}" id="card-${product.hts.replace(/\./g,'-')}"
+         onclick="selectProduct(${JSON.stringify(product).replace(/"/g,'&quot;')}, '${country}')">
+      <div class="match-card-top">
+        <div>
+          <div class="match-card-name">${product.category}</div>
+          <div class="match-card-hts">HTS ${product.hts} · Chapter ${product.chapter}
+            <a href="${product.usitc_url}" target="_blank" onclick="event.stopPropagation()" style="margin-left:6px;font-size:10px;">USITC ↗</a>
+          </div>
+        </div>
+        <div class="match-total">
+          <div class="match-total-rate ${rateClass}">${stack.total.toFixed(1)}%</div>
+          <div class="match-total-label">Total Duty</div>
+        </div>
+      </div>
+      <div class="match-breakdown">${breakdown}</div>
+    </div>`;
+}
+
+function selectProduct(product, country) {
+  selectedProduct = product;
+  const stack = getTariffStack(product, country);
+
+  // Highlight selected card
+  document.querySelectorAll('.match-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-' + product.hts.replace(/\./g,'-'));
+  if (card) card.classList.add('selected');
+
+  // Render tariff stack
+  document.getElementById('tariff-stack-section').style.display = '';
+  renderTariffStack(product, stack);
+
+  // Set tariff override
+  document.getElementById('tariff-rate-override').value = stack.total.toFixed(1);
+  document.getElementById('calc-tariff-note').style.display = 'none';
+  calcLanded();
+}
+
+function renderTariffStack(product, stack) {
+  const country = document.getElementById('country').value;
+  const countryLabel = document.getElementById('country').options[document.getElementById('country').selectedIndex].text;
+
+  let html = `<div class="tariff-stack">
+    <div class="tariff-stack-header">
+      <span>${product.category} · HTS ${product.hts} · Origin: ${countryLabel}</span>
+      <span>${stack.total.toFixed(1)}% total</span>
+    </div>
+    <div class="tariff-stack-row">
+      <span class="tariff-stack-label">
+        <span class="badge badge-blue">MFN</span>
+        Base HTS Rate (Column 1 — all WTO countries)
+      </span>
+      <span class="tariff-stack-val positive">+${stack.mfn.toFixed(1)}%</span>
+    </div>`;
+
+  if (stack.isUsmcaCafta) {
+    html += `<div class="tariff-stack-row" style="background:#f0fdf4;">
+      <span class="tariff-stack-label">
+        <span class="badge badge-green">USMCA</span>
+        Section 122 Surcharge — EXEMPT (qualifying USMCA/CAFTA goods)
+      </span>
+      <span class="tariff-stack-val zero">+0% ✓</span>
+    </div>`;
+  } else {
+    html += `<div class="tariff-stack-row">
+      <span class="tariff-stack-label">
+        <span class="badge badge-amber">Sec 122</span>
+        Global Surcharge — all countries · Effective Feb 24, 2026 · Expires Jul 24, 2026
+      </span>
+      <span class="tariff-stack-val positive">+${stack.sec122.toFixed(1)}%</span>
+    </div>`;
+  }
+
+  if (stack.isChina) {
+    html += `<div class="tariff-stack-row">
+      <span class="tariff-stack-label">
+        <span class="badge badge-purple">Sec 301</span>
+        China Tariff — List ${product.sec301_list} · USTR · Permanently in force
+      </span>
+      <span class="tariff-stack-val positive">+${stack.sec301.toFixed(1)}%</span>
+    </div>`;
+  } else {
+    html += `<div class="tariff-stack-row" style="color:#9ca3af;">
+      <span class="tariff-stack-label">
+        <span class="badge badge-gray">Sec 301</span>
+        China-only tariff — not applicable to ${countryLabel}
+      </span>
+      <span class="tariff-stack-val zero">+0%</span>
+    </div>`;
+  }
+
+  html += `<div class="tariff-stack-row struck">
+      <span class="tariff-stack-label">
+        <span class="badge badge-gray">IEEPA</span>
+        Reciprocal / "Liberation Day" tariffs — STRUCK DOWN Feb 20, 2026 (SCOTUS 6–3)
+      </span>
+      <span class="tariff-stack-val zero">+0% ✕</span>
+    </div>
+    <div class="tariff-stack-row total">
+      <span class="tariff-stack-label">🏁 Total Duty Rate on CIF Value</span>
+      <span class="tariff-stack-val">= ${stack.total.toFixed(1)}%</span>
+    </div>
+  </div>`;
+
+  document.getElementById('tariff-stack-breakdown').innerHTML = html;
+
+  let notes = '';
+  if (!stack.isUsmcaCafta) {
+    notes += `<strong>Note on Section 122:</strong> The 15% surcharge expires July 24, 2026 unless Congress acts to extend it. If it expires without renewal, your total rate would drop to ${(stack.total - stack.sec122).toFixed(1)}%. `;
+  }
+  if (stack.isChina) {
+    notes += `<strong>Section 301</strong> rates are permanent (congressional authority) and are unaffected by the SCOTUS ruling. List 4A products (most finished apparel) = 7.5%; Lists 1–3 (fabrics, some accessories) = 25%.`;
+  }
+  notes += ` <a href="${product.usitc_url}" target="_blank">Verify on USITC ↗</a>`;
+  document.getElementById('tariff-notes').innerHTML = notes;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// LANDED COST
+// ══════════════════════════════════════════════════════════════════════
+
+function calcLanded() {
+  const unit = parseFloat(document.getElementById('unit-cost').value) || 0;
+  const qty = parseFloat(document.getElementById('quantity').value) || 1;
+  const freight = parseFloat(document.getElementById('freight-cost').value) || 0;
+  const fees = parseFloat(document.getElementById('other-fees').value) || 0;
+  const rate = parseFloat(document.getElementById('tariff-rate-override').value) || 0;
+
+  if (unit <= 0) { document.getElementById('landed-result').style.display = 'none'; return; }
+
+  const productTotal = unit * qty;
+  const cif = productTotal + freight;
+  const tariffAmt = cif * (rate / 100);
+  const total = cif + fees + tariffAmt;
+  const perUnit = total / qty;
+  const dutyPerUnit = tariffAmt / qty;
+  const tariffPct = total > 0 ? (tariffAmt / total * 100) : 0;
+
+  document.getElementById('r-qty').textContent = qty.toLocaleString();
+  document.getElementById('r-unit').textContent = unit.toFixed(2);
+  document.getElementById('r-product-total').textContent = productTotal.toFixed(2);
+  document.getElementById('r-freight').textContent = freight.toFixed(2);
+  document.getElementById('r-fees').textContent = fees.toFixed(2);
+  document.getElementById('r-cif').textContent = cif.toFixed(2);
+  document.getElementById('r-rate').textContent = rate.toFixed(1);
+  document.getElementById('r-tariff').textContent = tariffAmt.toFixed(2);
+  document.getElementById('r-total').textContent = total.toFixed(2);
+  document.getElementById('r-per-unit').textContent = perUnit.toFixed(2);
+  document.getElementById('r-tariff-pct').textContent = tariffPct.toFixed(1) + '%';
+  document.getElementById('r-duty-per-unit').textContent = dutyPerUnit.toFixed(2);
+  document.getElementById('landed-result').style.display = '';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FEDERAL REGISTER NEWS
+// ══════════════════════════════════════════════════════════════════════
+
+function quickSearch(q) {
+  document.getElementById('news-query').value = q;
+  fetchNews();
+}
+
+async function fetchNews() {
+  const q = document.getElementById('news-query').value.trim() || 'tariff';
+  const btn = document.getElementById('news-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+
+  const list = document.getElementById('news-list');
+  list.innerHTML = [1,2,3].map(() => `<div class="skeleton" style="height:70px;margin-bottom:8px;"></div>`).join('');
+
+  try {
+    const encoded = encodeURIComponent(q + ' tariff');
+    const url = `https://www.federalregister.gov/api/v1/documents.json?conditions[term]=${encoded}&conditions[type][]=NOTICE&conditions[type][]=RULE&conditions[type][]=PRESDOCU&order=newest&per_page=12&fields[]=title&fields[]=publication_date&fields[]=html_url&fields[]=abstract&fields[]=type&fields[]=document_number`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const items = data.results || [];
+
+    if (items.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">📰</div><p>No results found for "${q}".</p></div>`;
+    } else {
+      list.innerHTML = items.map(a => {
+        const date = a.publication_date ? new Date(a.publication_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+        const typeBadge = a.type === 'RULE'
+          ? `<span class="badge badge-red">${a.type}</span>`
+          : a.type === 'NOTICE'
+          ? `<span class="badge badge-amber">${a.type}</span>`
+          : `<span class="badge badge-gray">${a.type||''}</span>`;
+        return `<div class="news-item">
+          <div class="news-item-title"><a href="${a.html_url}" target="_blank">${a.title}</a></div>
+          <div class="news-item-meta"><span>${date}</span>${typeBadge}</div>
+          ${a.abstract ? `<div class="news-item-abstract">${a.abstract}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="alert alert-red"><span class="alert-icon">⚠️</span><span>Could not load live news: ${e.message}. <a href="https://www.federalregister.gov/topics/tariff" target="_blank">Browse directly on federalregister.gov ↗</a></span></div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Search';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// REFERENCE TABLE
+// ══════════════════════════════════════════════════════════════════════
+
+function renderRefTable() {
+  const country = 'china'; // reference always shown for China (worst case)
+  const rows = PRODUCTS.map(p => {
+    const stack = getTariffStack(p, country);
+    const cls = stack.total > 45 ? 'high' : stack.total > 28 ? 'medium' : 'low';
+    const sec301badge = p.sec301_list === '3'
+      ? `<span class="badge badge-purple">List 3 · 25%</span>`
+      : `<span class="badge badge-blue">List 4A · 7.5%</span>`;
+    return `<tr>
+      <td>${p.category}</td>
+      <td class="font-mono" style="font-size:11.5px;color:#6b7280;">${p.hts}</td>
+      <td style="text-align:right;">${p.mfn.toFixed(1)}%</td>
+      <td style="text-align:right;">${stack.sec122}%</td>
+      <td style="text-align:right;">${sec301badge}</td>
+      <td style="text-align:right;" class="total-cell ${cls}">${stack.total.toFixed(1)}%</td>
+      <td><a href="${p.usitc_url}" target="_blank" style="font-size:11px;">USITC ↗</a></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('ref-table').innerHTML = `
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>HTS Code</th>
+        <th style="text-align:right;">MFN</th>
+        <th style="text-align:right;">Sec 122</th>
+        <th style="text-align:right;">Sec 301 (China)</th>
+        <th style="text-align:right;">Total (China)</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════
+// (News loaded lazily when tab is opened)
+</script>
+</body>
+</html>
